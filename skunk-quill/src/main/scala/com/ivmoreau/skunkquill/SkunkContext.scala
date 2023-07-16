@@ -9,33 +9,49 @@
 package com.ivmoreau.skunkquill
 
 import cats.data.Kleisli
-import cats.effect.IO as CatsIO
+import cats.effect.Async
+import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxFlatMapOps, toFunctorOps}
 import io.getquill.context.{Context, ContextVerbTranslate, ExecutionInfo}
 import io.getquill.context.sql.SqlContext
 import io.getquill.PostgresDialect
 import io.getquill.NamingStrategy
 import io.getquill.util.ContextLogger
+import natchez.Trace
 import skunk.Session
 import skunk.data.Completion
 
 import java.time.ZoneId
 import scala.util.Try
 
-final class SkunkContext[+N <: NamingStrategy](
+/** A [[Context]] that uses Skunk as the underlying database connector. It's polymorphic over the effect type, so you
+  * can use it with any effect type that has a [[cats.effect.Async]] instance and a [[natchez.Trace]] instance.
+  *
+  * If you don't need tracing, you can use [[natchez.Trace.Implicits.noop]] as the implicit trace instance, which
+  * generates a no-op trace from your [[cats.effect.Async]] instance.
+  *
+  * @tparam N
+  *   The naming strategy to use.
+  * @tparam Effect
+  *   The effect type to use.
+  * @see
+  *   [[SkunkContextIO]] for a convenience class that uses [[cats.effect.IO]] as the effect type.
+  */
+class SkunkContext[+N <: NamingStrategy, Effect[_]](
     val naming: N,
-    sessionSkunk: Session[CatsIO]
-) extends Context[PostgresDialect, N]
+    sessionSkunk: Session[Effect]
+)(implicit async: Async[Effect], trace: Trace[Effect])
+    extends Context[PostgresDialect, N]
     with ContextVerbTranslate
     with SqlContext[PostgresDialect, N]
-    with Decoders
-    with Encoders
-    with UUIDObjectEncoding {
+    with Decoders[Effect]
+    with Encoders[Effect]
+    with UUIDObjectEncoding[Effect] {
 
-  private val logger = ContextLogger(classOf[SkunkContext[_]])
+  private val logger = ContextLogger(classOf[SkunkContext[_, Effect]])
 
   override type Session = Unit
 
-  override type Result[T] = CatsIO[T]
+  override type Result[T] = Effect[T]
   override type RunQueryResult[T] = Seq[T]
   override type RunQuerySingleResult[T] = T
   override type RunActionResult = Completion
@@ -67,11 +83,11 @@ final class SkunkContext[+N <: NamingStrategy](
   override type DecoderSqlType = skunk.data.Type
 
   @inline
-  def withSession[T](kleisli: Kleisli[CatsIO, skunk.Session[CatsIO], T]): CatsIO[T] =
+  def withSession[T](kleisli: Kleisli[Result, skunk.Session[Result], T]): Result[T] =
     kleisli(sessionSkunk)
 
-  def withSessionDo[T]: (skunk.Session[CatsIO] => CatsIO[T]) => CatsIO[T] =
-    (f: skunk.Session[CatsIO] => CatsIO[T]) => f(sessionSkunk)
+  def withSessionDo[T]: (skunk.Session[Result] => Result[T]) => Result[T] =
+    (f: skunk.Session[Result] => Result[T]) => f(sessionSkunk)
 
   def prepareParams(
       statement: String,
@@ -83,7 +99,7 @@ final class SkunkContext[+N <: NamingStrategy](
     * PostgreSQL. This does not catch exceptions thrown by the function, so the caller must handle them, for a function
     * that does not throw exceptions, use [[transactionTry]].
     */
-  def transaction[T](f: CatsIO[T]): CatsIO[T] = withSessionDo { (session: skunk.Session[CatsIO]) =>
+  def transaction[T](f: Result[T]): Result[T] = withSessionDo { (session: skunk.Session[Result]) =>
     session.transaction.use { _ => f }
   }
 
@@ -93,10 +109,10 @@ final class SkunkContext[+N <: NamingStrategy](
     * @see
     *   [[transaction]] for a version that does not catch exceptions.
     */
-  def transactionTry[T](f: CatsIO[T]): CatsIO[Option[T]] = withSessionDo { (session: skunk.Session[CatsIO]) =>
+  def transactionTry[T](f: Result[T]): Result[Option[T]] = withSessionDo { (session: skunk.Session[Result]) =>
     session.transaction.use { t =>
-      f.map(Some(_)).handleErrorWith { _ =>
-        t.rollback >> CatsIO.pure(None) // We should probably log the error here
+      f.map[Option[T]](Some(_)).handleErrorWith { _ =>
+        t.rollback >> Async[Result].pure(None) // We should probably log the error here
       }
     }
   }
@@ -108,7 +124,7 @@ final class SkunkContext[+N <: NamingStrategy](
   )(
       info: ExecutionInfo,
       dc: Runner
-  ): CatsIO[List[T]] = {
+  ): Result[List[T]] = {
     val (params, values) = prepare(Nil, ())
     logger.logQuery(sql, params)
     withSession {
@@ -120,14 +136,14 @@ final class SkunkContext[+N <: NamingStrategy](
       sql: String,
       prepare: Prepare = identityPrepare,
       extractor: Extractor[T]
-  )(info: ExecutionInfo, dc: Runner): CatsIO[T] = {
+  )(info: ExecutionInfo, dc: Runner): Result[T] = {
     executeQuery(sql, prepare, extractor)(info, dc).map(handleSingleResult(sql, _))
   }
 
   def executeAction(
       sql: String,
       prepare: Prepare = identityPrepare
-  )(info: ExecutionInfo, dc: Runner): CatsIO[Completion] = {
+  )(info: ExecutionInfo, dc: Runner): Result[Completion] = {
     val (params, values) = prepare(Nil, ())
     logger.logQuery(sql, params)
     withSession {

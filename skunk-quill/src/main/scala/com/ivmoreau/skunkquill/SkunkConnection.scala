@@ -8,7 +8,7 @@
 
 package com.ivmoreau.skunkquill
 
-import cats.effect.IO as CatsIO
+import cats.effect.{Async, IO as CatsIO}
 import cats.data.Kleisli
 import skunk.data.{Completion, Type}
 import skunk.{Command, Decoder, Query, Session, Void}
@@ -33,23 +33,23 @@ object SkunkConnection {
       }
   }
 
-  def sendQuery[T](
+  def sendQuery[Effect[_]: Async, T](
       queryStr: String
-  ): Kleisli[CatsIO, Session[CatsIO], List[Row]] = {
+  ): Kleisli[Effect, Session[Effect], List[Row]] = {
     // We set isDynamic to true so that Skunk let us to manage the decoding in Quill
     // side. This allows [[anyDecoder]] to be used without specifying the type of the
     // query sql result.
     val query: Query[Void, Row] = sql"NOOP".query(anyDecoder).copy(isDynamic = true, sql = queryStr)
-    Kleisli { (s: Session[CatsIO]) =>
+    Kleisli { (s: Session[Effect]) =>
       s.execute(query)
     }
   }
 
-  def sendCommand(
+  def sendCommand[Effect[_]: Async](
       commandStr: String
-  ): Kleisli[CatsIO, Session[CatsIO], Completion] = {
+  ): Kleisli[Effect, Session[Effect], Completion] = {
     val command: Command[Void] = sql"NOOP".command.copy(sql = commandStr)
-    Kleisli { (s: Session[CatsIO]) =>
+    Kleisli { (s: Session[Effect]) =>
       s.execute(command)
     }
   }

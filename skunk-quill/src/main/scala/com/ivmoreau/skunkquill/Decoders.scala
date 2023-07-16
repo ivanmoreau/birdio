@@ -28,8 +28,8 @@ import java.util.Date
 import scala.reflect.{ClassTag, classTag}
 import scala.util.Try
 
-trait Decoders {
-  this: SkunkContext[_] =>
+trait Decoders[F[_]] {
+  this: SkunkContext[_, F] =>
 
   type Decoder[T] = SkunkDecoder[T]
 

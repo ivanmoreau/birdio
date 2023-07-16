@@ -62,7 +62,7 @@ Or use a version from Releases.
 ## Usage
 
 It mostly works like any other Quill connector, except that you need to provide a Skunk `Session`
-in the `SkunkContext` constructor. The creation of the `Session` is up to you, and you can use
+in the `SkunkContextIO` constructor. The creation of the `Session` is up to you, and you can use
 the official Skunk documentation for that purpose
 (see [here](https://typelevel.org/skunk/reference/Sessions.html)). For Quill, see
 [here](https://web.archive.org/web/20230526004744/https://getquill.io/#docs).
@@ -85,7 +85,7 @@ object Main extends IOApp.Simple {
       password = Some("somepw")
     )
 
-  val db = sessionResource.map(new SkunkContext[SnakeCase](SnakeCase, _))
+  val db = sessionResource.map(new SkunkContextIO[SnakeCase](SnakeCase, _))
   
   val run = db.use { ctx =>
     import ctx.*
@@ -100,6 +100,22 @@ object Main extends IOApp.Simple {
   }
 }
 ```
+
+### Other Effects Systems (ZIO, Monix, etc.)
+
+You can use any effect system you want. `Any effect system??!` Yes, any effect system
+`Like EVERY effect system?` Maybe. `Even the ones that don't exist yet?` Mmmh, I don't know.
+
+The point is, you can use any effect system that has a `cats.effect.Async` instance. For example,
+if you want to use ZIO, you can use `zio-interop-cats` to get the `cats.effect.Async` instance.
+Monix could work too, provided that you can make it work with Cats Effect 3.
+
+`What about Futures from Scala, Akka, Twitter?` They probably won't work because they don't have
+a `cats.effect.Async` instance. Futures are not lazy, they cannot have a lawful `Async`
+instance. But you may be able to introduce a lawful subtype of that Future in a way that it can be
+used with Async.
+
+For the polymorphic version of `SkunkContextIO`, you can use `SkunkContext` instead.
 
 ## License
 

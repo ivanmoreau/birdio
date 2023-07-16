@@ -12,7 +12,7 @@ case class Post(username: String, text: String)
 
 class SkunkQuillTest extends CatsEffectSuite {
 
-  val db: Resource[IO, SkunkContext[SnakeCase]] = {
+  val db: Resource[IO, SkunkContextIO[SnakeCase]] = {
     val session: Resource[IO, Session[IO]] =
       Session.single(
         host = "localhost",
@@ -22,7 +22,7 @@ class SkunkQuillTest extends CatsEffectSuite {
         password = Some("test")
       )
     val newCtx = session
-      .map(s => new SkunkContext[SnakeCase](SnakeCase, s))
+      .map(s => new SkunkContextIO[SnakeCase](SnakeCase, s))
     newCtx.flatMap(ctx =>
       Resource.make(IO(ctx))(ctx => {
         import ctx.*

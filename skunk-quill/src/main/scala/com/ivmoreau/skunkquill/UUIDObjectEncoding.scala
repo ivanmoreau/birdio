@@ -18,8 +18,8 @@ package com.ivmoreau.skunkquill
 
 import java.util.UUID
 
-trait UUIDObjectEncoding {
-  this: SkunkContext[_] =>
+trait UUIDObjectEncoding[F[_]] {
+  this: SkunkContext[_, F] =>
 
   implicit val uuidEncoder: Encoder[UUID] = encoder[UUID](SqlTypes.UUID)
 

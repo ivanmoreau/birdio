@@ -19,8 +19,8 @@ package com.ivmoreau.skunkquill
 import java.time._
 import java.util.Date
 
-trait Encoders {
-  this: SkunkContext[_] =>
+trait Encoders[F[_]] {
+  this: SkunkContext[_, F] =>
 
   type Encoder[T] = SkunkEncoder[T]
 

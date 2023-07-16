@@ -5,15 +5,11 @@ import publish._
 object `skunk-quill` extends SbtModule with PublishModule {
   def scalaVersion = "2.13.8"
 
-  def scalacOptions = super.scalacOptions() ++ Seq("-language:experimental.macros", "-Xsource:3")
+  def scalacOptions = super.scalacOptions() ++ Seq("-language:experimental.macros", "-Xsource:3", "-language:implicitConversions")
 
   def ivyDeps = Agg(
     ivy"org.tpolecat::skunk-core:0.6.0",
     ivy"io.getquill::quill-sql:4.6.1"
-  )
-
-  override def scalacPluginIvyDeps = Agg(
-    ivy"org.typelevel:::kind-projector:0.13.2"
   )
 
   object test extends ScalaTests with TestModule.Munit {
