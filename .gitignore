@@ -99,3 +99,4 @@ docs/_spec/.jekyll-metadata
 # scaladoc related
 scaladoc/output/
 
+.direnv/
