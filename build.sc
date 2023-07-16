@@ -12,6 +12,10 @@ object `skunk-quill` extends SbtModule with PublishModule {
     ivy"io.getquill::quill-sql:4.6.1"
   )
 
+  override def scalacPluginIvyDeps = Agg(
+    ivy"org.typelevel:::kind-projector:0.13.2"
+  )
+
   object test extends ScalaTests with TestModule.Munit {
     def ivyDeps =
       Agg(
