@@ -1,7 +1,5 @@
 package com.ivmoreau.skunkquill
 
-import io.getquill.context.Context
-
 import java.time._
 import java.util.Date
 
@@ -10,14 +8,14 @@ trait Encoders {
 
   type Encoder[T] = AsyncEncoder[T]
 
-  type ResultRow = Any
+  type ResultRow = SkunkConnection.Row
   type Session = Unit
   type PrepareRow = Seq[Any]
 
   type EncoderSqlType = SqlTypes.SqlTypes
-  type DecoderSqlType = SqlTypes.SqlTypes
+  type DecoderSqlType = skunk.data.Type
 
-  case class AsyncEncoder[T](sqlType: DecoderSqlType)(implicit
+  case class AsyncEncoder[T](sqlType: EncoderSqlType)(implicit
       encoder: BaseEncoder[T]
   ) extends BaseEncoder[T] {
     override def apply(
@@ -29,10 +27,10 @@ trait Encoders {
       encoder.apply(index, value, row, session)
   }
 
-  def encoder[T](sqlType: DecoderSqlType): Encoder[T] =
+  def encoder[T](sqlType: EncoderSqlType): Encoder[T] =
     encoder(identity[T], sqlType)
 
-  def encoder[T](f: T => Any, sqlType: DecoderSqlType): Encoder[T] =
+  def encoder[T](f: T => Any, sqlType: EncoderSqlType): Encoder[T] =
     AsyncEncoder[T](sqlType)(new BaseEncoder[T] {
       def apply(index: Index, value: T, row: PrepareRow, session: Session) =
         row :+ f(value)
