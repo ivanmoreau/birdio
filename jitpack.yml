@@ -1,0 +1,5 @@
+before_install:
+  - sh -c '(echo "#!/usr/bin/env sh" && curl -L https://github.com/lihaoyi/mill/releases/download/0.11.1/0.11.1) > ~/mill && chmod +x ~/mill'
+  - mkdir -p ~/.m2/
+install:
+  - ~/mill -j 0 skunk-quill.publishM2Local
