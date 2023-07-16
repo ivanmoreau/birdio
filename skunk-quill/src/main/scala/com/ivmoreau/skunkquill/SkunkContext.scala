@@ -71,12 +71,25 @@ final class SkunkContext[+N <: NamingStrategy](
   ): Seq[String] =
     prepare(Nil, ())._2.map(prepareParam)
 
+  /** Executes the given function withing a transaction block, rolling back the transaction if failure occurs in
+    * PostgreSQL. This does not catch exceptions thrown by the function, so the caller must handle them, for a function
+    * that does not throw exceptions, use [[transactionTry]].
+    */
   def transaction[T](f: CatsIO[T]): CatsIO[T] = withSessionDo { (session: skunk.Session[CatsIO]) =>
+    session.transaction.use { _ => f }
+  }
+
+  /** Executes the given function withing a transaction block, rolling back the transaction if failure occurs in
+    * PostgreSQL. This catches exceptions thrown by the function, so the caller does not need to handle them, and if an
+    * exception is thrown, the transaction is rolled back.
+    * @see
+    *   [[transaction]] for a version that does not catch exceptions.
+    */
+  def transactionTry[T](f: CatsIO[T]): CatsIO[Option[T]] = withSessionDo { (session: skunk.Session[CatsIO]) =>
     session.transaction.use { t =>
-      for {
-        result <- f
-        _ <- t.commit
-      } yield result
+      f.map(Some(_)).handleErrorWith { _ =>
+        t.rollback >> CatsIO.pure(None) // We should probably log the error here
+      }
     }
   }
 

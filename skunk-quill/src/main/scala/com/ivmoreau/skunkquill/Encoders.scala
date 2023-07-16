@@ -6,7 +6,7 @@ import java.util.Date
 trait Encoders {
   this: SkunkContext[_] =>
 
-  type Encoder[T] = AsyncEncoder[T]
+  type Encoder[T] = SkunkEncoder[T]
 
   type ResultRow = SkunkConnection.Row
   type Session = Unit
@@ -15,7 +15,7 @@ trait Encoders {
   type EncoderSqlType = SqlTypes.SqlTypes
   type DecoderSqlType = skunk.data.Type
 
-  case class AsyncEncoder[T](sqlType: EncoderSqlType)(implicit
+  case class SkunkEncoder[T](sqlType: EncoderSqlType)(implicit
       encoder: BaseEncoder[T]
   ) extends BaseEncoder[T] {
     override def apply(
@@ -31,7 +31,7 @@ trait Encoders {
     encoder(identity[T], sqlType)
 
   def encoder[T](f: T => Any, sqlType: EncoderSqlType): Encoder[T] =
-    AsyncEncoder[T](sqlType)(new BaseEncoder[T] {
+    SkunkEncoder[T](sqlType)(new BaseEncoder[T] {
       def apply(index: Index, value: T, row: PrepareRow, session: Session) =
         row :+ f(value)
     })
@@ -40,13 +40,13 @@ trait Encoders {
       mapped: MappedEncoding[I, O],
       e: Encoder[O]
   ): Encoder[I] =
-    AsyncEncoder(e.sqlType)(new BaseEncoder[I] {
+    SkunkEncoder(e.sqlType)(new BaseEncoder[I] {
       def apply(index: Index, value: I, row: PrepareRow, session: Session) =
         e(index, mapped.f(value), row, session)
     })
 
   implicit def optionEncoder[T](implicit d: Encoder[T]): Encoder[Option[T]] =
-    AsyncEncoder(d.sqlType)(new BaseEncoder[Option[T]] {
+    SkunkEncoder(d.sqlType)(new BaseEncoder[Option[T]] {
       def apply(
           index: Index,
           value: Option[T],

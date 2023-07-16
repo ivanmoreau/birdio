@@ -10,9 +10,9 @@ import natchez.Trace.Implicits.noop
 // Test table
 case class Post(username: String, text: String)
 
-class MySuite extends CatsEffectSuite {
+class SkunkQuillTest extends CatsEffectSuite {
 
-  val db = {
+  val db: Resource[IO, SkunkContext[SnakeCase]] = {
     val session: Resource[IO, Session[IO]] =
       Session.single(
         host = "localhost",
@@ -26,8 +26,7 @@ class MySuite extends CatsEffectSuite {
     newCtx.flatMap(ctx =>
       Resource.make(IO(ctx))(ctx => {
         import ctx.*
-        Console[IO].println("Closing") >>
-          run(query[Post].delete).void
+        run(query[Post].delete).void // This also serves as a test that delete works LOL
       })
     )
   }
@@ -63,6 +62,28 @@ class MySuite extends CatsEffectSuite {
           for {
             _ <- run(query[Post].insertValue(Post("Joe", "Hello")))
             _ <- run(query[Post].insertValue(Post("Jack", "Hello")))
+            _ <- IO.raiseError(new Exception("rollback"))
+          } yield ()
+        }.handleError(_ => ())
+        resultsJoe <- run(query[Post].filter(_.username == "Joe"))
+        resultsJack <- run(query[Post].filter(_.username == "Jack"))
+      } yield {
+        assertEquals(resultsJoe, List(Post("Joe", "Hello")))
+        assert(resultsJack.isEmpty)
+      }
+    }
+  }
+
+  test("transactionTry works") {
+    db.use { ctx =>
+      import ctx.*
+      for {
+        _ <- run(query[Post].insertValue(Post("Joe", "Hello")))
+        _ <- transactionTry {
+          for {
+            _ <- run(query[Post].insertValue(Post("Joe", "Hello")))
+            _ <- run(query[Post].insertValue(Post("Jack", "Hello")))
+            _ <- IO.raiseError(new Exception("rollback"))
           } yield ()
         }
         resultsJoe <- run(query[Post].filter(_.username == "Joe"))
@@ -73,5 +94,4 @@ class MySuite extends CatsEffectSuite {
       }
     }
   }
-
 }

@@ -7,10 +7,21 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: testpgdb
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v3
       - uses: cachix/install-nix-action@v20
         with:
           nix_path: nixpkgs=channel:nixos-unstable
-      - run: nix profile install nixpkgs#postgresql_12
-      - run: nix run nixpkgs#mill -- skunk-quill.test
+      - run: ./.github/setupdb.sh
+      - run: nix profile install nixpkgs#mill
+      - run: mill skunk-quill.test
