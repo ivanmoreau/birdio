@@ -28,6 +28,10 @@ ThisBuild / githubWorkflowBuildPreamble ++= Seq(
     name = Some("Start up Postgres")
   ),
   WorkflowStep.Run(
+    commands = List("./.github/wait-for-postgres.sh"),
+    name = Some("Wait for Postgres to be ready")
+  ),
+  WorkflowStep.Run(
     commands = List("./.github/setupdb.sh"),
     name = Some("Setup test database")
   )
@@ -38,6 +42,8 @@ ThisBuild / tlCiHeaderCheck := false
 
 // Disable publishing for this project
 ThisBuild / githubWorkflowPublish := Seq()
+
+ThisBuild / tlFatalWarnings := false
 
 Test / parallelExecution := false
 

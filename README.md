@@ -1,6 +1,6 @@
 # Skunk-quill for Scala 2.13
-[![Test](https://github.com/ivanmoreau/skunk-quill.scala/actions/workflows/test.yml/badge.svg)](https://github.com/ivanmoreau/skunk-quill.scala/actions/workflows/test.yml)
-[![Release](https://jitpack.io/v/com.ivmoreau/skunk-quill.scala.svg)](https://jitpack.io/#com.ivmoreau/skunk-quill.scala)
+[![Continuous Integration](https://github.com/ivanmoreau/skunk-quill.scala/actions/workflows/ci.yml/badge.svg)](https://github.com/ivanmoreau/skunk-quill.scala/actions/workflows/ci.yml)
+[![Release](https://jitpack.io/v/com.ivmoreau/skunk-quill.svg)](https://jitpack.io/#com.ivmoreau/skunk-quill)
 [![License](https://img.shields.io/badge/license-MPL%202.0-blue.svg)](https://opensource.org/licenses/MPL-2.0)
 
 <img align="right" width="256px" height="256px" src=".github/skunk.png"/>
@@ -50,10 +50,10 @@ Then add the following dependency (this library is published on Jitpack only for
 
 ```scala
 // build.sbt
-libraryDependencies += "com.ivmoreau" % "skunk-quill.scala" % "<version>"
+libraryDependencies += "com.ivmoreau.skunk-quill" %% "skunk-quill" % "<version>"
 
 // or build.sc
-ivy"com.ivmoreau:skunk-quill.scala:<version>"
+ivy"com.ivmoreau.skunk-quill::skunk-quill:<version>"
 ```
 
 See the badge above for the latest version. A commit hash can also be used as a version.
@@ -119,7 +119,34 @@ For the polymorphic version of `SkunkContextIO`, you can use `SkunkContext` inst
 
 ### ZIO and Twitter Futures
 
-TODO
+If you want to use ZIO with Twitter Futures, you can use the following dependency:
+
+```scala
+// build.sbt
+libraryDependencies += "com.ivmoreau.skunk-quill" %% "bird-io" % "<version>"
+libraryDependencies += "com.ivmoreau.skunk-quill" %% "skunk-quill-bird-io" % "<version>"
+
+libraryDependencies += "com.ivmoreau.skunk-quill" %% "skunk-quill-zio" % "<version>"
+
+// or build.sc
+ivy"com.ivmoreau.skunk-quill::bird-io:<version>"
+ivy"com.ivmoreau.skunk-quill::skunk-quill-bird-io:<version>"
+
+ivy"com.ivmoreau.skunk-quill::skunk-quill-zio:<version>"
+```
+
+They provide the following contexts:
+
+```scala
+import com.ivmoreau.skunkquill.SkunkContextBirdIO
+
+import com.ivmoreau.skunkquill.SkunkContextZIO
+```
+
+#### About BirdIO
+
+Soooo, I mamaged to implement a IO monad based on Twitter Futures. It does the job, or at least
+the tests pass. BirdIO doesn't depend on quill or skunk, so it can be used for other purposes.
 
 ## License
 

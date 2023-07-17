@@ -69,6 +69,12 @@ jobs:
       - name: Start up Postgres
         run: docker-compose up -d
 
+      - name: Wait for Postgres to be ready
+        run: ./.github/wait-for-postgres.sh
+
+      - name: Setup test database
+        run: ./.github/setupdb.sh
+
       - name: Check that workflows are up to date
         run: sbt githubWorkflowCheck
 
