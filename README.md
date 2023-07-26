@@ -13,7 +13,7 @@ BirdIO is a super cute wrapper around Twitter Futures that aims to provide a sim
 To use BirdIO, add the following dependency to your project:
 
 ```scala
-libraryDependencies += "com.ivmoreau" %% "birdio" % "1.0.0"
+libraryDependencies += "com.ivmoreau" %% "birdio" % "<tag | version>"
 ```
 
 # Usage
