@@ -8,16 +8,19 @@
 
 package com.ivmoreau.birdio
 
-import cats.effect.unsafe.{IORuntime, Scheduler}
-import com.twitter.util.{Future, FuturePool, Monitor, ScheduledThreadPoolTimer}
+import cats.effect.unsafe.{IORuntime, IORuntimeConfig, Scheduler}
+import com.twitter.util.{Duration, Future, FuturePool, JavaTimer, Monitor, Promise, ScheduledThreadPoolTimer}
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import cats.effect.IO
+
+import java.time.Instant
+import java.time.temporal.ChronoField
 
 object BirdUtils {
 
-  /** Generate a BirdIO ExecutionContext from the Local#Context of the current Future thread. This is a non-blocking
-    * EC.
+  /** Generate a BirdIO ExecutionContext from the Local#Context of the current Future thread. This is a non-blocking EC.
     */
   def genExecutionContext: BirdIO[ExecutionContext] =
     BirdIO {
@@ -27,8 +30,7 @@ object BirdUtils {
       }
     }
 
-  /** Generate a BirdIO ExecutionContext from the Local#Context of the current Future thread. This is a blocking
-    * EC.
+  /** Generate a BirdIO ExecutionContext from the Local#Context of the current Future thread. This is a blocking EC.
     */
   def genExecutionContextBlocking: BirdIO[ExecutionContext] =
     BirdIO {
@@ -39,16 +41,61 @@ object BirdUtils {
     }
 
   /** Runs a Cats IO task in a Twitter Future context. */
-  def runIO[A](io: BirdIO[A]): Future[A] = {
-    val computeEC: BirdIO[ExecutionContext] = genExecutionContext
-    val blockingEC: BirdIO[ExecutionContext] = genExecutionContextBlocking
+  def runIO[A](io: IO[A]): Future[A] = {
+    val computeEC: ExecutionContext =
+      new ExecutionContext {
+        def execute(runnable: Runnable): Unit = Future(runnable.run())
+
+        def reportFailure(cause: Throwable): Unit = Monitor.handle(cause)
+      }
+
+    val blockingEC: ExecutionContext =
+      new ExecutionContext {
+        def execute(runnable: Runnable): Unit = FuturePool.unboundedPool(runnable.run())
+
+        def reportFailure(cause: Throwable): Unit = Monitor.handle(cause)
+      }
+
     val scheduler: Scheduler = new Scheduler {
-      override def sleep(delay: FiniteDuration, task: Runnable): Runnable =
+      override def sleep(delay: FiniteDuration, task: Runnable): Runnable = new Runnable {
+        override def run(): Unit = Future.Unit.flatMap { _ =>
+          implicit val timer: JavaTimer = new JavaTimer()
+          Future.sleep(Duration.fromMilliseconds(delay.toMillis))
+        }
+      }
 
-      override def nowMillis(): Long = ???
+      override def nowMillis(): Long = System.currentTimeMillis()
 
-      override def monotonicNanos(): Long = ???
+      override def monotonicNanos(): Long = {
+        val now = Instant.now()
+        now.getEpochSecond * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
+      }
     }
-    val runtime: IORuntime = IORuntime.apply()
+
+    val config: IORuntimeConfig = IORuntimeConfig()
+    val runtime: IORuntime =
+      IORuntime.apply(
+        compute = computeEC,
+        blocking = blockingEC,
+        scheduler = scheduler,
+        shutdown = () => (),
+        config = config
+      )
+
+    val promise: Promise[A] = Promise[A]()
+
+    io.unsafeRunAsync {
+      case Left(e)  => promise.setException(e)
+      case Right(a) => promise.setValue(a)
+    }(runtime)
+
+    promise
   }
+}
+
+final class BirdUtilsOps[A](val io: IO[A]) extends AnyVal {
+
+  /** Warning: Deprecated. Use [[runInXFuture]] instead. */
+  def runInTwitter(): Future[A] = BirdUtils.runIO(io)
+  def runInXFuture(): Future[A] = BirdUtils.runIO(io)
 }

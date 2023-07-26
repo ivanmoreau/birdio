@@ -56,6 +56,14 @@ object BirdIO {
       }
     }) {}
 
+  /** Twitter Futures are now called X Futures. */
+  def unsafeFromXFuture[A](future: => Future[A]): BirdIO[A] =
+    new BirdIO[A](() => future) {}
+
+  /** Warning: Deprecated. Use [[unsafeFromXFuture]] instead, as Twitter is now called X. */
+  def unsafeFromTwitterFuture[A](future: => Future[A]): BirdIO[A] =
+    new BirdIO[A](() => future) {}
+
   def raiseError[A](err: Throwable): BirdIO[A] = new BirdIO[A](() => Future.exception(err)) {}
 
   def raiseUnless[A](cond: Boolean)(err: => Throwable): BirdIO[Unit] =
