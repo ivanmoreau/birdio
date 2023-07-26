@@ -30,6 +30,13 @@ object BirdUtils {
       }
     }
 
+  def executionContext: ExecutionContext = {
+    new ExecutionContext {
+      def execute(runnable: Runnable): Unit = Future(runnable.run())
+      def reportFailure(cause: Throwable): Unit = Monitor.handle(cause)
+    }
+  }
+
   /** Generate a BirdIO ExecutionContext from the Local#Context of the current Future thread. This is a blocking EC.
     */
   def genExecutionContextBlocking: BirdIO[ExecutionContext] =
@@ -39,6 +46,13 @@ object BirdUtils {
         def reportFailure(cause: Throwable): Unit = Monitor.handle(cause)
       }
     }
+
+  def executionContextBlocking: ExecutionContext = {
+    new ExecutionContext {
+      def execute(runnable: Runnable): Unit = FuturePool.unboundedPool(runnable.run())
+      def reportFailure(cause: Throwable): Unit = Monitor.handle(cause)
+    }
+  }
 
   /** Runs a Cats IO task in a Twitter Future context. */
   def runIO[A](io: IO[A]): Future[A] = {
@@ -91,6 +105,21 @@ object BirdUtils {
 
     promise
   }
+
+  def futureToIO[A](f: => Future[A]): IO[A] = {
+    val promise: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
+    f.respond {
+      case com.twitter.util.Return(a) => promise.success(a)
+      case com.twitter.util.Throw(e)  => promise.failure(e)
+    }
+    IO.fromFuture(IO(promise.future)).evalOn(executionContext)
+  }
+
+  def birdIOToIO[A](f: BirdIO[A]): IO[A] = {
+    futureToIO(f.run())
+  }
+
+  implicit def birdUtilsSyntax[A](io: IO[A]): BirdUtilsOps[A] = new BirdUtilsOps(io)
 }
 
 final class BirdUtilsOps[A](val io: IO[A]) extends AnyVal {

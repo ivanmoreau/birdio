@@ -1,163 +1,111 @@
-# Skunk-quill for Scala 2.13
-[![Continuous Integration](https://github.com/ivanmoreau/skunk-quill.scala/actions/workflows/ci.yml/badge.svg)](https://github.com/ivanmoreau/skunk-quill.scala/actions/workflows/ci.yml)
-[![Release](https://jitpack.io/v/com.ivmoreau/skunk-quill.svg)](https://jitpack.io/#com.ivmoreau/skunk-quill)
+# BirdIO - A Twitter Futures Wrapper with Cats Effect ʕ•ᴥ•ʔ
+[![Continuous Integration](https://github.com/ivanmoreau/birdio/actions/workflows/ci.yml/badge.svg)](https://github.com/ivanmoreau/birdio/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MPL%202.0-blue.svg)](https://opensource.org/licenses/MPL-2.0)
 
-<img align="right" width="256px" height="256px" src=".github/skunk.png"/>
+<img align="right" width="256px" height="256px" src=".github/birdio.png"/>
 
-WARNING: This library is a proof of concept made in a day.
+WARNING: This library is WIP.
 
-This library provides a [Skunk](https://typelevel.org/skunk/) connector for [Quill](https://getquill.io/).
-It allows you to write your queries with the be1autiful Quill DSL and execute them with the brilliant Skunk.
+# Overview
+BirdIO is a super cute wrapper around Twitter Futures that aims to provide a similar interface to the cats.effect.IO data type, enabling functional programming with asynchronous operations! ฅ^•ﻌ•^ฅ This library allows you to work with asynchronous computations in a monadic style, making it easy to compose and chain operations like magic~
 
-## Why?
-
-Quill is cool. But then I discovered Skunk by reading its documentation, and I really really liked it
-(have you seen its error messages?). So Skunk is cool too. But what if we could use the magic of Quill
-DSL with the power of Skunk? That's what this library is about, about power, magic, hegemony,
-world domination, and socioeconomics (ok, maybe not the last one). But mostly about power and magic.
-You get the idea, right? right?! But to be honest, I made this as an exercise and proof of concept
-in a day (16/07/2023).
-
-## Considerations
-
-Soooo, there is this thing about Skunk and Quill. Skunk does its own type encoding/decoding, and
-Quill does its own type encoding/decoding. So, this library kind of avoids the problem by using
-`List[Any]` as the type for the Decoder of Skunk side, which represent the row of the result set.
-This value is then passed to Quill, which will properly decode with its own type decoder. The encoder
-is less tricky, as it is just handled by Quill, so when we get the final SQL query, we just pass it
-to Skunk as the SQL string (avoiding the need to encode the values). And that's it. It works. I don't
-have any `but` to add here because its the best way I could find to make it work in a few hours.
-But if you have any suggestion, please open an issue or a PR!
-
-## Installation
-
-You need the following resolvers:
+# Installation
+To use BirdIO, add the following dependency to your project:
 
 ```scala
-// build.sbt
-resolvers += "jitpack" at "https://jitpack.io"
+libraryDependencies += "com.ivmoreau" %% "birdio" % "1.0.0"
+```
 
-// or build.sc
-import coursier.maven.MavenRepository
-def repositoriesTask = T.task { super.repositoriesTask() ++ Seq(
-    MavenRepository("jitpack").at("https://jitpack.io")
-  )
+# Usage
+## Creating BirdIO Instances
+BirdIO instances can be created using various adorable methods:
+
+1. Delayed Evaluation
+```scala
+import com.ivmoreau.birdio.BirdIO
+
+val delayedComputation: BirdIO[Int] = BirdIO.delay {
+  // Your computation here
+  42
 }
 ```
 
-Then add the following dependency (this library is published on Jitpack only for Scala 2.13!):
-
+2. Pure Value
 ```scala
-// build.sbt
-libraryDependencies += "com.ivmoreau.skunk-quill" %% "skunk-quill" % "<version>"
+val pureValue: BirdIO[String] = BirdIO.pure("Hello, world!")
 
-// or build.sc
-ivy"com.ivmoreau.skunk-quill::skunk-quill:<version>"
 ```
 
-See the badge above for the latest version. A commit hash can also be used as a version.
-Or use a version from Releases.
-
-## Usage
-
-It mostly works like any other Quill connector, except that you need to provide a Skunk `Session`
-in the `SkunkContextIO` constructor. The creation of the `Session` is up to you, and you can use
-the official Skunk documentation for that purpose
-(see [here](https://typelevel.org/skunk/reference/Sessions.html)). For Quill, see
-[here](https://web.archive.org/web/20230526004744/https://getquill.io/#docs).
+3. Asynchronous Computation with Twitter Futures
 
 ```scala
-import cats.effect.{IO, Resource, IOApp}
-import cats.effect.std.Console
-import skunk.Session
-import com.ivmoreau.skunkquill.SkunkContext
-import io.getquill.SnakeCase
-import natchez.Trace.Implicits.noop
+import com.twitter.util.Future
 
-object Main extends IOApp.Simple {
-  val sessionResource: Resource[IO, Session[IO]] =
-    Session.single(
-      host = "localhost",
-      port = 5432,
-      user = "user",
-      database = "somedb",
-      password = Some("somepw")
-    )
+val twitterFuture: Future[Int] = Future {
+  // Your asynchronous computation here
+  100
+}
 
-  val db = sessionResource.map(new SkunkContextIO[SnakeCase](SnakeCase, _))
-  
-  val run = db.use { ctx =>
-    import ctx.*
+val birdIOFromTwitterFuture: BirdIO[Int] = BirdIO.unsafeFromXFuture(twitterFuture)
+```
 
-    val q = quote {
-      query[Person].filter(p => p.name == "John")
-    }
+## Chaining Operations
+BirdIO supports typical monadic operations like map, flatMap, flatten, and others! Let's dance~ ٩(◕‿◕｡)۶
 
-    ctx.run(q).flatMap { people =>
-      Console[IO].println(s"Found ${people.size} people: ${people.mkString(", ")}")
-    }
-  }
+```scala
+val result: BirdIO[Int] = for {
+  a <- BirdIO.pure(10)
+  b <- BirdIO.pure(20)
+  c <- BirdIO.delay(a + b)
+} yield c
+```
+
+## Error Handling
+BirdIO provides error handling capabilities using handleError and handleErrorWith! Don't worry, we gotchu (つ✧ω✧)つ
+
+```scala
+val computation: BirdIO[Int] = BirdIO.delay {
+  // Some computation that might throw an exception
+  42
+}
+
+val handled: BirdIO[Int] = computation.handleError { error =>
+  // Handle the error and provide a fallback value
+  println(s"An error occurred: $error")
+  0
 }
 ```
 
-### Other Effects Systems (ZIO, Monix, etc.)
-
-You can use any effect system you want. `Any effect system??!` Yes, any effect system
-`Like EVERY effect system?` Maybe. `Even the ones that don't exist yet?` Mmmh, I don't know.
-
-The point is, you can use any effect system that has a `cats.effect.Async` instance. For example,
-if you want to use ZIO, you can use `zio-interop-cats` to get the `cats.effect.Async` instance.
-Monix could work too, provided that you can make it work with Cats Effect 3.
-
-`What about Futures from Scala, Akka, Twitter?` They probably won't work because they don't have
-a `cats.effect.Async` instance. Futures are not lazy, they cannot have a lawful `Async`
-instance. But you may be able to introduce a lawful subtype of that Future in a way that it can be
-used with Async.
-
-For the polymorphic version of `SkunkContextIO`, you can use `SkunkContext` instead.
-
-### ZIO and Twitter Futures
-
-If you want to use ZIO with Twitter Futures, you can use the following dependency:
+## Asynchronous Operations
+BirdIO allows you to work with asynchronous operations using async and deferred! Let's fly together (•̀ᴗ•́)و ̑̑
 
 ```scala
-// build.sbt
-libraryDependencies += "com.ivmoreau.skunk-quill" %% "bird-io" % "<version>"
-libraryDependencies += "com.ivmoreau.skunk-quill" %% "skunk-quill-bird-io" % "<version>"
+val asyncComputation: BirdIO[Int] = BirdIO.async { callback =>
+  // Your asynchronous computation here
+  // Call the callback with the result when done
+  callback(Right(42))
+}
 
-libraryDependencies += "com.ivmoreau.skunk-quill" %% "skunk-quill-zio" % "<version>"
+val deferredValue: BirdIO[Int] = BirdIO.defer(BirdIO.delay {
+  // Your deferred computation here
+  100
+})
 
-// or build.sc
-ivy"com.ivmoreau.skunk-quill::bird-io:<version>"
-ivy"com.ivmoreau.skunk-quill::skunk-quill-bird-io:<version>"
-
-ivy"com.ivmoreau.skunk-quill::skunk-quill-zio:<version>"
 ```
-
-They provide the following contexts:
+## Utilities
+BirdIO comes with some utility methods to work with Ref, Deferred, and more! So helpful! (•ω•)∩╮
 
 ```scala
-import com.ivmoreau.skunkquill.SkunkContextBirdIO
+val refValue: BirdIO[Ref[BirdIO, Int]] = BirdIO.ref(10)
 
-import com.ivmoreau.skunkquill.SkunkContextZIO
+val deferredValue: BirdIO[Deferred[BirdIO, String]] = BirdIO.deferred
+
+val uniqueToken: BirdIO[Unique.Token] = BirdIO.unique
+
 ```
 
-#### About BirdIO
-
-Soooo, I mamaged to implement a IO monad based on Twitter Futures. It does the job, or at least
-the tests pass. BirdIO doesn't depend on quill or skunk, so it can be used for other purposes.
-
-## License
-
-This project is licensed under the Mozilla Public License 2.0 - see the [LICENSE](LICENSE). For
-Quill derived code, see the [Apache License 2.0](https://github.com/zio/zio-quill/blob/master/LICENSE.txt).
-All new code is explicitly licensed under the MPL 2.0.
-
-## Acknowledgments
-
-* [Skunk](https://typelevel.org/skunk/)
-* [Quill](https://getquill.io/)
+# License
+BirdIO is licensed under MPL2. See the LICENSE file for more details. (◕‿◕✿)
 
 ## Contributing
 

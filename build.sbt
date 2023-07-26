@@ -1,5 +1,5 @@
 // https://typelevel.org/sbt-typelevel/faq.html#what-is-a-base-version-anyway
-ThisBuild / tlBaseVersion := "0.3" // your current series x.y
+ThisBuild / tlBaseVersion := "0.2" // your current series x.y
 
 ThisBuild / organization := "com.ivmoreau"
 ThisBuild / organizationName := "Iván Molina Rebolledo"
@@ -20,30 +20,17 @@ ThisBuild / crossScalaVersions := Seq(Scala213)
 ThisBuild / scalaVersion := Scala213 // the default Scala
 ThisBuild / scalacOptions ++= Seq("-Xsource:3")
 
-ThisBuild / githubWorkflowPublishTargetBranches := Seq()
-
-ThisBuild / githubWorkflowBuildPreamble ++= Seq(
-  WorkflowStep.Run(
-    commands = List("docker-compose up -d"),
-    name = Some("Start up Postgres")
-  ),
-  WorkflowStep.Run(
-    commands = List("./.github/wait-for-postgres.sh"),
-    name = Some("Wait for Postgres to be ready")
-  ),
-  WorkflowStep.Run(
-    commands = List("./.github/setupdb.sh"),
-    name = Some("Setup test database")
-  )
-)
-
-ThisBuild / tlCiScalafmtCheck := true
-ThisBuild / tlCiHeaderCheck := false
-
-// Disable publishing for this project
-ThisBuild / githubWorkflowPublish := Seq()
+// ThisBuild / tlCiScalafmtCheck.withRank(KeyRanks.Invisible) := true
+// ThisBuild / tlCiHeaderCheck.withRank(KeyRanks.Invisible) := false
 
 ThisBuild / tlFatalWarnings := false
+
+ThisBuild / githubWorkflowBuild := Seq(
+  WorkflowStep.Run(
+    name = Some("Compile"),
+    commands = List("sbt compile")
+  )
+)
 
 Test / parallelExecution := false
 
@@ -64,6 +51,7 @@ lazy val `bird-io` = crossProject(JVMPlatform)
       "org.scalameta" %%% "munit" % "1.0.0-M8" % Test,
       "org.typelevel" %%% "munit-cats-effect" % "2.0.0-M3" % Test,
       "org.typelevel" %% "cats-effect-laws" % "3.5.1" % Test,
+      "org.typelevel" %% "cats-effect-testkit" % "3.5.1" % Test,
       "org.typelevel" %% "discipline-munit" % "2.0.0-M3" % Test
     )
   )

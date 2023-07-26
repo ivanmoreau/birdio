@@ -8,6 +8,8 @@ import cats.effect.std.Console
 import com.twitter.util.{Future, FutureCancelledException, FuturePool, Promise, Return, Throw, Try}
 
 import java.nio.charset.Charset
+import java.time.Instant
+import java.time.temporal.ChronoField
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
@@ -132,9 +134,13 @@ object BirdIO {
     raiseError(new NotImplementedError("BirdIO does not support Executor"))
 
   def monotonic: BirdIO[FiniteDuration] = {
+    def t(): Long = {
+      val now = Instant.now()
+      now.getEpochSecond * 1000000 + now.getLong(ChronoField.MICRO_OF_SECOND)
+    }
     import java.lang.System.nanoTime
-    assert(nanoTime() - nanoTime() == 0, "System.nanoTime is not monotonic")
-    new BirdIO[FiniteDuration](() => Future.value(Duration.fromNanos(nanoTime()))) {}
+    assert(t() - t() == 0, "System.nanoTime is not monotonic")
+    new BirdIO[FiniteDuration](() => Future.value(Duration.fromNanos(t()))) {}
   }
 
   def realTime: BirdIO[FiniteDuration] = {
